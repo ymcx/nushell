@@ -384,9 +384,7 @@ fn ls_for_one_pattern(
                             return None;
                         }
 
-                        let display_name = if short_names {
-                            path.file_name().map(|os| os.to_string_lossy().to_string())
-                        } else if full_paths || absolute_path {
+                        let display_name = if full_paths || absolute_path {
                             Some(path.to_string_lossy().to_string())
                         } else if let Some(prefix) = &prefix {
                             if let Ok(remainder) = path.strip_prefix(prefix) {
@@ -437,6 +435,7 @@ fn ls_for_one_pattern(
                                     metadata.as_ref(),
                                     call_span,
                                     long,
+                                    short_names,
                                     du,
                                     &signals_clone,
                                     use_mime_type,
@@ -560,6 +559,7 @@ pub(crate) fn dir_entry_dict(
     metadata: Option<&std::fs::Metadata>,
     span: Span,
     long: bool,
+    short_names: bool,
     du: bool,
     signals: &Signals,
     use_mime_type: bool,
@@ -578,7 +578,7 @@ pub(crate) fn dir_entry_dict(
     let mut record = Record::new();
     let mut file_type = "unknown".to_string();
 
-    record.push("name", Value::string(display_name, span));
+    record.push("name", Value::glob(display_name, short_names, span));
 
     if let Some(md) = metadata {
         file_type = get_file_type(md, display_name, use_mime_type);

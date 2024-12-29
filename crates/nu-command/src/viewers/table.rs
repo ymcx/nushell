@@ -675,10 +675,15 @@ fn handle_row_stream(
                     // Only the name column gets special colors, for now
                     if let Some(value) = record.to_mut().get_mut("name") {
                         let span = value.span();
-                        if let Value::String { val, .. } = value {
-                            if let Some(val) =
-                                render_path_name(val, &config, &ls_colors, input.cwd.clone(), span)
-                            {
+                        if let Value::Glob { val, no_expand, .. } = value {
+                            if let Some(val) = render_path_name(
+                                val,
+                                *no_expand,
+                                &config,
+                                &ls_colors,
+                                input.cwd.clone(),
+                                span,
+                            ) {
                                 *value = val;
                             }
                         }
@@ -1003,6 +1008,7 @@ fn is_record_list<'a>(mut batch: impl ExactSizeIterator<Item = &'a Value>) -> bo
 
 fn render_path_name(
     path: &str,
+    short_names: bool,
     config: &Config,
     ls_colors: &LsColors,
     cwd: Option<NuPathBuf>,
@@ -1037,9 +1043,19 @@ fn render_path_name(
         .canonicalize()
         .unwrap_or_else(|_| PathBuf::from(stripped_path.as_ref()));
 
+    let display_path = if short_names {
+        full_path
+            .file_name()
+            .unwrap_or_default()
+            .to_str()
+            .unwrap_or_default()
+    } else {
+        path
+    };
+
     let full_path_link = make_clickable_link(
         full_path.display().to_string(),
-        Some(path),
+        Some(display_path),
         show_clickable_links,
     );
 
