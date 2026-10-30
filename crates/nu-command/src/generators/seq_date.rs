@@ -205,13 +205,7 @@ impl Command for SeqDate {
                 match increment {
                     Value::Int { val, .. } => Some(
                         val.checked_mul(NANOSECONDS_IN_DAY)
-                            .ok_or_else(|| {
-                                ShellError::Generic(GenericError::new(
-                                    "increment is too large",
-                                    "increment is too large",
-                                    span,
-                                ))
-                            })?
+                            .ok_or_else(|| too_large_increment(span))?
                             .into_spanned(span),
                     ),
                     Value::Duration { val, .. } => Some(val.into_spanned(span)),
@@ -375,9 +369,16 @@ pub fn run_seq_dates(
 
     // Make the signs opposite if we're created dates in reverse direction
     if reverse {
-        step_size *= -1;
-        days_to_output *= -1;
-        periods_to_output *= -1;
+        let a = step_size.checked_mul(-1);
+        let b = days_to_output.checked_mul(-1);
+        let c = periods_to_output.checked_mul(-1);
+        let (Some(a), Some(b), Some(c)) = (a, b, c) else {
+            return Err(too_large_increment(call_span));
+        };
+
+        step_size = a;
+        days_to_output = b;
+        periods_to_output = c;
     }
 
     // --days is ignored when --periods is set
@@ -459,6 +460,14 @@ pub fn run_seq_dates(
     }
 
     Ok(Value::list(ret, call_span))
+}
+
+fn too_large_increment(span: Span) -> ShellError {
+    ShellError::Generic(GenericError::new(
+        "increment is too large",
+        "increment is too large",
+        span,
+    ))
 }
 
 #[cfg(test)]

@@ -25,3 +25,24 @@ fn fails_when_increment_not_integer_or_duration() -> Result {
     );
     Ok(())
 }
+
+#[test]
+fn i64_min_reverse_overflow() -> Result {
+    test()
+        .run("seq date --begin-date 2020-01-01 --days -9223372036854775808 --reverse")
+        .expect_shell_error()?;
+    test()
+        .run("seq date --begin-date 2020-01-01 --days -9223372036854775807 --reverse")
+        .expect_shell_error()?;
+    test()
+        .run("seq date --begin-date 2020-01-01 --days 9223372036854775807 --reverse")
+        .expect_shell_error()?;
+    test()
+        .run("seq date --begin-date 2020-01-01 --days -9223372036854775808")
+        .expect_shell_error()?;
+    test()
+        .run("seq date --begin-date 2020-01-01 --days 9223372036854775807")
+        .expect_shell_error()?;
+
+    Ok(())
+}
