@@ -144,10 +144,18 @@ static REWRITES: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
         // 18 of April
         (r"(?i)\bof ", ""),
         // shorten month names
-        (
-            r"(?i)\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(uary|ruary|ch|il|e|y|ust|t|tember|ober|ember)?\b",
-            "$1",
-        ),
+        (r"(?i)\bjanuary\b", "jan"),
+        (r"(?i)\bfebruary\b", "feb"),
+        (r"(?i)\bmarch\b", "mar"),
+        (r"(?i)\bapril\b", "apr"),
+        (r"(?i)\bmay\b", "may"),
+        (r"(?i)\bjune\b", "jun"),
+        (r"(?i)\bjuly\b", "jul"),
+        (r"(?i)\baugust\b", "aug"),
+        (r"(?i)\bseptember\b", "sep"),
+        (r"(?i)\boctober\b", "oct"),
+        (r"(?i)\bnovember\b", "nov"),
+        (r"(?i)\bdecember\b", "dec"),
         // remove the dot if it's unnecessary: "12 Dec. 2026", "12 Dec., 2026". do not delete if it's a separator: "12.Dec.2026"
         (
             r"(?i)\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\.([\s,]|$)",

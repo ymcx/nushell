@@ -455,3 +455,15 @@ fn into_datetime_from_string_with_separators(
     let code = "$in | into datetime | format date '%J'";
     test().run_with_data(code, input).expect_value_eq(expected)
 }
+
+#[rstest]
+#[case("Janember")]
+#[case("Febtember")]
+#[case("Sepember")]
+#[case("Maych")]
+fn into_datetime_from_string_invalid_month_name(#[case] input: &str) -> Result {
+    let code = "$in | into datetime";
+    test()
+        .run_with_data(code, input)
+        .expect_error_code_eq("nu::shell::datetime_parse_error")
+}
