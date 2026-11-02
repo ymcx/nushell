@@ -46,8 +46,28 @@ const DATES: &[&str] = &[
     "%Y-%b-%d",
     "%b-%d-%y",
     "%b-%d-%Y",
+    "%d/%b/%y",
+    "%d/%b/%Y",
+    "%Y/%b/%d",
+    "%b/%d/%y",
+    "%b/%d/%Y", //
+    "%d.%b.%y",
+    "%d.%b.%Y",
+    "%Y.%b.%d",
+    "%b.%d.%y",
+    "%b.%d.%Y", //
     "%d%b%y",
     "%d%b%Y", //
+    "%d-%b %y",
+    "%d-%b %Y",
+    "%Y-%b %d",
+    "%b-%d %y",
+    "%b-%d %Y", //
+    "%d %b-%y",
+    "%d %b-%Y",
+    "%Y %b-%d",
+    "%b %d-%y",
+    "%b %d-%Y", //
     "%d %b %y",
     "%d %b %Y",
     "%d %b",
@@ -59,6 +79,12 @@ const DATES: &[&str] = &[
     "%b", //
     "%Y %b %d",
     "%Y %b", //
+    "%b/%Y",
+    "%b.%Y",
+    "%b-%Y",
+    "%Y/%b",
+    "%Y.%b",
+    "%Y-%b", //
     "%m-%d",
     "%m/%d",
     "%Y-%m",
@@ -117,10 +143,20 @@ static REWRITES: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
         (r"(?i)(\d)(st|nd|rd|th)\b", "$1"),
         // 18 of April
         (r"(?i)\bof ", ""),
-        // month names to three letters, with or without a dot: `Apr.`, `Sept.`
+        // shorten month names
         (
-            r"(?i)\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(uary|ruary|ch|il|e|y|ust|t|tember|ober|ember)?(?:\.|\b)",
+            r"(?i)\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(uary|ruary|ch|il|e|y|ust|t|tember|ober|ember)?\b",
             "$1",
+        ),
+        // remove the dot if it's unnecessary: "12 Dec. 2026", "12 Dec., 2026". do not delete if it's a separator: "12.Dec.2026"
+        (
+            r"(?i)\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\.([\s,]|$)",
+            "$1$3",
+        ),
+        // remove the comma
+        (
+            r"(?i)\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec),",
+            "$1 ",
         ),
         // fraction digits past nanoseconds
         (r"(\.\d{9})\d+", "$1"),

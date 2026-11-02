@@ -443,3 +443,15 @@ fn into_datetime_from_any_typed_pipeline_is_datetime() -> Result {
     "#;
     test().run(code).expect_value_eq("datetime")
 }
+
+#[rstest]
+#[case("1 Feb, 2015", "20150201")]
+#[case("1 Feb,2015", "20150201")]
+#[case("1.Feb.2015", "20150201")]
+fn into_datetime_from_string_with_separators(
+    #[case] input: &str,
+    #[case] expected: &str,
+) -> Result {
+    let code = "$in | into datetime | format date '%J'";
+    test().run_with_data(code, input).expect_value_eq(expected)
+}
