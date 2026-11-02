@@ -140,7 +140,11 @@ static REWRITES: LazyLock<Vec<(Regex, &str)>> = LazyLock::new(|| {
         // a.m. / p.m.
         (r"(?i)([\d ])([ap])\.?m\.?(\s|$)", "$1${2}M$3"),
         // 18th, 1st
-        (r"(?i)(\d)(st|nd|rd|th)\b", "$1"),
+        (r"(?i)\b(\d*[0456789])th\b", "$1"),
+        (r"(?i)\b(\d*1[123])th\b", "$1"),
+        (r"(?i)\b(1|\d*[^1]1)st\b", "$1"),
+        (r"(?i)\b(2|\d*[^1]2)nd\b", "$1"),
+        (r"(?i)\b(3|\d*[^1]3)rd\b", "$1"),
         // 18 of April
         (r"(?i)\bof ", ""),
         // shorten month names

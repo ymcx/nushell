@@ -467,3 +467,70 @@ fn into_datetime_from_string_invalid_month_name(#[case] input: &str) -> Result {
         .run_with_data(code, input)
         .expect_error_code_eq("nu::shell::datetime_parse_error")
 }
+
+#[rstest]
+#[case("1th")]
+#[case("1nd")]
+#[case("1rd")]
+#[case("2th")]
+#[case("3th")]
+#[case("11st")]
+#[case("12nd")]
+#[case("13rd")]
+#[case("21th")]
+#[case("22th")]
+#[case("23th")]
+#[case("101th")]
+#[case("102th")]
+#[case("103th")]
+#[case("111st")]
+#[case("112nd")]
+#[case("113rd")]
+#[case("121th")]
+#[case("122th")]
+#[case("123th")]
+fn into_datetime_from_string_invalid_position_suffix(#[case] input: &str) -> Result {
+    let input = format!("June 7 {}", input);
+    let code = "$in | into datetime";
+
+    test()
+        .run_with_data(code, input)
+        .expect_error_code_eq("nu::shell::datetime_parse_error")
+}
+
+#[rstest]
+#[case("0th", "00")]
+#[case("1st", "01")]
+#[case("2nd", "02")]
+#[case("3rd", "03")]
+#[case("4th", "04")]
+#[case("5th", "05")]
+#[case("6th", "06")]
+#[case("7th", "07")]
+#[case("8th", "08")]
+#[case("9th", "09")]
+#[case("10th", "10")]
+#[case("11th", "11")]
+#[case("12th", "12")]
+#[case("13th", "13")]
+#[case("21st", "21")]
+#[case("22nd", "22")]
+#[case("23rd", "23")]
+#[case("101st", "01")]
+#[case("102nd", "02")]
+#[case("103rd", "03")]
+#[case("111th", "11")]
+#[case("112th", "12")]
+#[case("113th", "13")]
+#[case("121st", "21")]
+#[case("122nd", "22")]
+#[case("123rd", "23")]
+fn into_datetime_from_string_valid_position_suffix(
+    #[case] input: &str,
+    #[case] expected: &str,
+) -> Result {
+    let input = format!("June 7 {}", input);
+    let code = "$in | into datetime | format date '%y'";
+
+    test().run_with_data(code, input).expect_value_eq(expected)
+}
