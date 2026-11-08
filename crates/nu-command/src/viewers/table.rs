@@ -578,6 +578,19 @@ fn pretty_hex_stream(stream: ByteStream, table_cfg: TableConfig, span: Span) -> 
     )
 }
 
+/// Remove columns that start with an underscore from the table that will be shown to the user.
+/// Such columns can be used for passing additional data further down without having them appear in the table.
+/// For example, `_path` is used for giving `ls` the ability to read the metadata, icon and color information from the full path rather than the display path.
+/// Columns are still visible if they are requested explicitly, like if the table is piped into `columns`.
+fn remove_hidden_columns(record: &mut Record) {
+    let columns: Vec<String> = record.columns().cloned().collect();
+    for column in columns {
+        if column.starts_with("_") {
+            record.remove(column);
+        }
+    }
+}
+
 fn full_path(record: &Record) -> Option<PathBuf> {
     let value = record.get("_path")?;
     let path = PathBuf::from(value.as_str().ok()?);
@@ -647,6 +660,7 @@ fn handle_record(
                 }
             }
         }
+        remove_hidden_columns(&mut record);
     }
     let opts = create_table_opts(
         input.engine_state,
@@ -844,6 +858,7 @@ fn handle_row_stream(
                         }
                     }
                 }
+                remove_hidden_columns(record.to_mut());
             }
             value
         })
