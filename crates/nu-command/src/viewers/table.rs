@@ -12,7 +12,6 @@ use url::Url;
 
 use nu_color_config::{StyleComputer, TextStyle, color_from_hex};
 use nu_engine::{command_prelude::*, env_to_string, eval_ir_call};
-use nu_path::form::Absolute;
 use nu_pretty_hex::{HexConfig, HexStyles};
 use nu_protocol::{
     ByteStream, Config, DataSource, ListStream, PipelineMetadata, Signals,
@@ -26,8 +25,6 @@ use nu_table::{
 use nu_utils::{get_ls_colors, terminal_size};
 
 type ShellResult<T> = Result<T, ShellError>;
-type NuPathBuf = nu_path::PathBuf<Absolute>;
-type NuPath = nu_path::Path<Absolute>;
 
 const DEFAULT_TABLE_WIDTH: usize = 80;
 
@@ -419,7 +416,6 @@ struct CmdInput<'a> {
     call: &'a Call<'a>,
     data: PipelineData,
     cfg: TableConfig,
-    cwd: Option<NuPathBuf>,
 }
 
 impl<'a> CmdInput<'a> {
@@ -430,7 +426,6 @@ impl<'a> CmdInput<'a> {
         data: PipelineData,
     ) -> ShellResult<Self> {
         let cfg = parse_table_config(call, engine_state, stack)?;
-        let cwd = get_cwd(engine_state, stack)?;
 
         Ok(Self {
             engine_state,
@@ -438,7 +433,6 @@ impl<'a> CmdInput<'a> {
             call,
             data,
             cfg,
-            cwd,
         })
     }
 
@@ -584,6 +578,13 @@ fn pretty_hex_stream(stream: ByteStream, table_cfg: TableConfig, span: Span) -> 
     )
 }
 
+fn full_path(record: &Record) -> Option<PathBuf> {
+    let value = record.get("_path")?;
+    let path = PathBuf::from(value.as_str().ok()?);
+
+    Some(path)
+}
+
 fn handle_record(
     mut input: CmdInput,
     mut record: Record,
@@ -611,10 +612,8 @@ fn handle_record(
 
     let config = input.get_config();
 
-    if let Some(PipelineMetadata {
-        mut path_columns, ..
-    }) = metadata
-    {
+    if let Some(metadata) = metadata {
+        let mut path_columns = metadata.path_columns;
         // Remove duplicates
         path_columns.sort_unstable();
         path_columns.dedup();
@@ -630,15 +629,16 @@ fn handle_record(
         };
         let ls_colors = get_ls_colors(ls_colors_env_str);
 
+        let full_path = full_path(&record).unwrap_or_default();
         for column in &path_columns {
             if let Some(value) = record.get_mut(column) {
                 let span = value.span();
                 if let Value::String { val, .. } = value
                     && let Some(val) = render_path_name(
                         val,
+                        &full_path,
                         &config,
                         &ls_colors,
-                        input.cwd.as_deref(),
                         input.cfg.icons,
                         span,
                     )
@@ -826,15 +826,16 @@ fn handle_row_stream(
 
         stream.map(move |mut value| {
             if let Value::Record { val: record, .. } = &mut value {
+                let full_path = full_path(record).unwrap_or_default();
                 for column in &path_columns {
                     if let Some(value) = record.to_mut().get_mut(column) {
                         let span = value.span();
                         if let Value::String { val, .. } = value
                             && let Some(val) = render_path_name(
                                 val,
+                                &full_path,
                                 &config,
                                 &ls_colors,
-                                input.cwd.as_deref(),
                                 input.cfg.icons,
                                 span,
                             )
@@ -1145,9 +1146,9 @@ fn is_record_list<'a>(mut batch: impl ExactSizeIterator<Item = &'a Value>) -> bo
 
 fn render_path_name(
     path: &str,
+    full_path: &PathBuf,
     config: &Config,
     ls_colors: &LsColors,
-    cwd: Option<&NuPath>,
     icons: bool,
     span: Span,
 ) -> Option<Value> {
@@ -1155,18 +1156,11 @@ fn render_path_name(
         return None;
     }
 
-    let fullpath = match cwd {
-        Some(cwd) => PathBuf::from(cwd.join(path)),
-        None => PathBuf::from(path),
-    };
-
-    let stripped_path = nu_utils::strip_ansi_unlikely(path);
-    let metadata = std::fs::symlink_metadata(fullpath);
+    let metadata = std::fs::symlink_metadata(full_path);
     let has_metadata = metadata.is_ok();
-    let style =
-        ls_colors.style_for_path_with_metadata(stripped_path.as_ref(), metadata.ok().as_ref());
+    let style = ls_colors.style_for_path_with_metadata(full_path, metadata.ok().as_ref());
 
-    let file_icon = icon_for_file(path, &None);
+    let file_icon = icon_for_file(full_path, &None);
     let icon_style = lookup_ansi_color_style(file_icon.color);
 
     // clickable links don't work in remote SSH sessions
@@ -1199,9 +1193,6 @@ fn render_path_name(
             is_strikethrough: false,
             prefix_with_reset: false,
         });
-
-    let full_path = std::path::absolute(stripped_path.as_ref())
-        .unwrap_or_else(|_| PathBuf::from(stripped_path.as_ref()));
 
     let full_path_link = make_clickable_link(
         full_path.display().to_string(),
@@ -1362,16 +1353,6 @@ fn get_width_priority_columns(metadata: Option<&PipelineMetadata>) -> Vec<String
     }
 
     width_priority_columns
-}
-
-fn get_cwd(engine_state: &EngineState, stack: &mut Stack) -> ShellResult<Option<NuPathBuf>> {
-    #[cfg(feature = "os")]
-    let cwd = engine_state.cwd(Some(stack)).map(Some)?;
-
-    #[cfg(not(feature = "os"))]
-    let cwd = None;
-
-    Ok(cwd)
 }
 
 fn get_table_width(width_param: Option<i64>) -> usize {

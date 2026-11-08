@@ -586,7 +586,23 @@ fn ls_for_one_pattern(
                                     full_paths,
                                 );
                                 match result {
-                                    Ok(value) => Some(value),
+                                    Ok(mut value) => {
+                                        if let Value::Record { val, .. } = &mut value {
+                                            let full_path = if path.is_absolute() {
+                                                path.to_path_buf()
+                                            } else {
+                                                cwd.join(path)
+                                            };
+                                            val.to_mut().push(
+                                                "_path",
+                                                Value::string(
+                                                    full_path.to_string_lossy(),
+                                                    call_span,
+                                                ),
+                                            );
+                                        }
+                                        Some(value)
+                                    }
                                     Err(err) => Some(Value::error(err, call_span)),
                                 }
                             }
