@@ -455,7 +455,7 @@ fn list_all_columns() -> Result {
         test()
             .cwd(dirs.test())
             .run("ls | columns")
-            .expect_value_eq(["name", "type", "size", "modified"])?;
+            .expect_value_eq(["name", "type", "size", "modified", "_path"])?;
         // Long
         let expected = cfg_select! {
             unix => [
@@ -472,9 +472,10 @@ fn list_all_columns() -> Result {
                 "created",
                 "accessed",
                 "modified",
+                "_path",
             ],
             windows => [
-                "name", "type", "target", "readonly", "size", "created", "accessed", "modified",
+                "name", "type", "target", "readonly", "size", "created", "accessed", "modified", "_path",
             ],
         };
         test()
@@ -667,7 +668,7 @@ fn list_flag_false() -> Result {
         test()
             .cwd(dirs.test())
             .run("ls --long=false | columns | length")
-            .expect_value_eq(4)?;
+            .expect_value_eq(5)?;
 
         test()
             .cwd(dirs.test())
@@ -1079,6 +1080,41 @@ fn ls_dc_glob_braces() -> Result {
             .cwd(dirs.test())
             .run("ls '{x,y}' | get name")
             .expect_value_eq(["{x,y}"])
+    })
+}
+
+#[test]
+fn table_hides_full_path() -> Result {
+    Playground::setup("ls_full_path_hidden", |dirs, sandbox| {
+        sandbox.mkdir("1");
+        sandbox.mkdir("1/2");
+
+        // The table shown to the user must not contain the hidden _path column
+        test()
+            .cwd(dirs.test())
+            .run("ls 1 | table | str contains _path")
+            .expect_value_eq(false)?;
+
+        // The column must be there even if it's hidden in the table view
+        test()
+            .cwd(dirs.test())
+            .run("'_path' in (ls 1 | columns)")
+            .expect_value_eq(true)
+    })
+}
+
+#[test]
+fn short_names_table_color_uses_full_path() -> Result {
+    Playground::setup("ls_short_names_full_path_used", |dirs, sandbox| {
+        sandbox.mkdir("1");
+        sandbox.mkdir("1/2");
+
+        let code = r#"
+            $env.LS_COLORS = "di=31"
+            $env.config.use_ansi_coloring = true
+            ls -s 1 | table | str contains "\u{1b}[31m"
+        "#;
+        test().cwd(dirs.test()).run(code).expect_value_eq(true)
     })
 }
 
