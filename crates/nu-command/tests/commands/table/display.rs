@@ -1182,3 +1182,10 @@ fn table_empty_placeholder_too_narrow(#[case] command: &str, #[case] expected: &
     // text instead of panicking (#15328)
     test().run(command).expect_value_eq(expected)
 }
+
+#[test]
+fn underscore_columns_are_hidden() -> Result {
+    test()
+        .run("[[_hidden visible]; [1 2]] | table | str contains _hidden")
+        .expect_value_eq(false)
+}

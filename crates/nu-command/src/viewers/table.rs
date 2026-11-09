@@ -51,7 +51,7 @@ impl Command for Table {
     }
 
     fn extra_description(&self) -> &str {
-        "If the table contains a column called 'index', this column is used as the table index instead of the usual continuous index."
+        "If the table contains a column called 'index', this column is used as the table index instead of the usual continuous index. Columns whose names start with an underscore remain in the data but are not drawn in the table."
     }
 
     fn search_terms(&self) -> Vec<&str> {
@@ -590,7 +590,7 @@ fn pretty_hex_stream(stream: ByteStream, table_cfg: TableConfig, span: Span) -> 
     )
 }
 
-/// Remove columns that start with an underscore from the table that will be shown to the user.
+/// Remove columns that start with an underscore from a table before rendering it.
 /// Such columns can be used for passing additional data further down without having them appear in the table.
 /// For example, `_path` is used for giving `ls` the ability to read the metadata, icon and color information from the full path rather than the display path.
 /// Columns are still visible if they are requested explicitly, like if the table is piped into `columns`.
@@ -673,8 +673,8 @@ fn handle_record(
                 }
             }
         }
-        remove_hidden_columns(&mut record);
     }
+    remove_hidden_columns(&mut record);
     let opts = create_table_opts(
         input.engine_state,
         input.stack,
@@ -872,13 +872,19 @@ fn handle_row_stream(
                         }
                     }
                 }
-                remove_hidden_columns(record.to_mut());
             }
             value
         })
     } else {
         stream
     };
+
+    let stream = stream.map(|mut value| {
+        if let Value::Record { val: record, .. } = &mut value {
+            remove_hidden_columns(record.to_mut());
+        }
+        value
+    });
 
     let paginator = PagingTableCreator::new(
         input.call.head,

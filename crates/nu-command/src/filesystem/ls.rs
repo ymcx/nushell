@@ -151,6 +151,10 @@ impl Command for Ls {
         "List the filenames, sizes, and modification times of items in a directory."
     }
 
+    fn extra_description(&self) -> &str {
+        "Each entry carries its full path in the internal '_path' column. Columns whose names start with an underscore are hidden when rendered by 'table', but remain available to other commands."
+    }
+
     fn search_terms(&self) -> Vec<&str> {
         vec!["dir"]
     }
@@ -593,6 +597,7 @@ fn ls_for_one_pattern(
                                             } else {
                                                 cwd.join(path)
                                             };
+                                            // _path is a hidden column for retrieving file metadata and colors
                                             val.to_mut().push(
                                                 "_path",
                                                 Value::string(
