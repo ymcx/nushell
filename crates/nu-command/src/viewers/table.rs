@@ -1173,7 +1173,7 @@ fn is_record_list<'a>(mut batch: impl ExactSizeIterator<Item = &'a Value>) -> bo
     batch.len() > 0 && batch.all(|value| matches!(value, Value::Record { .. }))
 }
 
-fn get_fullpath(cwd: Option<&NuPath>, path: &str, full_path: &Path) -> PathBuf {
+fn metadata_path(cwd: Option<&NuPath>, path: &str, full_path: &Path) -> PathBuf {
     if !full_path.as_os_str().is_empty() {
         return full_path.to_path_buf();
     }
@@ -1184,7 +1184,7 @@ fn get_fullpath(cwd: Option<&NuPath>, path: &str, full_path: &Path) -> PathBuf {
     }
 }
 
-fn get_stripped_path(path: &str, full_path: &Path) -> PathBuf {
+fn style_path(path: &str, full_path: &Path) -> PathBuf {
     if !full_path.as_os_str().is_empty() {
         return full_path.to_path_buf();
     }
@@ -1193,12 +1193,25 @@ fn get_stripped_path(path: &str, full_path: &Path) -> PathBuf {
     PathBuf::from(stripped_path.to_string())
 }
 
-fn get_path(path: &str, full_path: &Path) -> PathBuf {
+fn icon_path(path: &str, full_path: &Path) -> PathBuf {
     if !full_path.as_os_str().is_empty() {
         return full_path.to_path_buf();
     }
 
     PathBuf::from(path)
+}
+
+fn link_path_string(path: &str, full_path: &Path) -> String {
+    if !full_path.as_os_str().is_empty() {
+        return full_path.to_string_lossy().to_string();
+    }
+
+    let stripped_path = nu_utils::strip_ansi_unlikely(path);
+    let full_path = match std::path::absolute(stripped_path.as_ref()) {
+        Ok(i) => i,
+        Err(_) => PathBuf::from(stripped_path.as_ref()),
+    };
+    full_path.display().to_string()
 }
 
 fn render_path_name(
@@ -1214,12 +1227,12 @@ fn render_path_name(
         return None;
     }
 
-    let metadata = std::fs::symlink_metadata(get_fullpath(cwd, path, full_path));
+    let metadata = std::fs::symlink_metadata(metadata_path(cwd, path, full_path));
     let has_metadata = metadata.is_ok();
-    let style = ls_colors
-        .style_for_path_with_metadata(get_stripped_path(path, full_path), metadata.ok().as_ref());
+    let style =
+        ls_colors.style_for_path_with_metadata(style_path(path, full_path), metadata.ok().as_ref());
 
-    let file_icon = icon_for_file(&get_path(path, full_path), &None);
+    let file_icon = icon_for_file(&icon_path(path, full_path), &None);
     let icon_style = lookup_ansi_color_style(file_icon.color);
 
     // clickable links don't work in remote SSH sessions
@@ -1254,7 +1267,7 @@ fn render_path_name(
         });
 
     let full_path_link = make_clickable_link(
-        full_path.display().to_string(),
+        link_path_string(path, full_path),
         Some(path),
         show_clickable_links,
     );

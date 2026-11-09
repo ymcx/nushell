@@ -1,4 +1,6 @@
 use indoc::indoc;
+use nu_test_support::fs::Stub::EmptyFile;
+use nu_test_support::playground::Playground;
 use nu_test_support::prelude::*;
 
 #[test]
@@ -88,6 +90,7 @@ fn configure_stream_size() -> Result {
 // `table -i false` should not panic when there's an `index` column
 #[test]
 fn metadata_path_columns_single() -> Result {
+    let input = test_value!([{ name: "src" }]);
     let expected = indoc! {"
         \u{1b}[39m╭───┬──────╮\u{1b}[0m
         \u{1b}[39m│\u{1b}[0m \u{1b}[1;32m#\u{1b}[0m │ \u{1b}[1;32mname\u{1b}[0m │
@@ -95,23 +98,18 @@ fn metadata_path_columns_single() -> Result {
         \u{1b}[39m│\u{1b}[0m \u{1b}[1;32m0\u{1b}[0m │ \u{1b}[38;5;81msrc\u{1b}[0m  │
         \u{1b}[39m╰───┴──────╯\u{1b}[0m
     "};
-    test()
-        .run_with_data(
-            "
-                let data = $in
-                $env.config.use_ansi_coloring = true
-                $env.config.shell_integration.osc8 = false
-                $data | metadata set --path-columns [name] | table
-            ",
-            test_value!([
-                { name: "src" },
-            ]),
-        )
-        .expect_value_eq(expected)
+    let code = "
+        $env.config.use_ansi_coloring = true
+        $env.config.shell_integration.osc8 = false
+        $in | metadata set --path-columns [name] | table
+    ";
+
+    test().run_with_data(code, input).expect_value_eq(expected)
 }
 
 #[test]
 fn metadata_path_columns_multiple() -> Result {
+    let input = test_value!([{ dir: "src", file: "main.rs" }]);
     let expected = indoc! {"
         \u{1b}[39m╭───┬─────┬─────────╮\u{1b}[0m
         \u{1b}[39m│\u{1b}[0m \u{1b}[1;32m#\u{1b}[0m │ \u{1b}[1;32mdir\u{1b}[0m │  \u{1b}[1;32mfile\u{1b}[0m   │
@@ -119,23 +117,18 @@ fn metadata_path_columns_multiple() -> Result {
         \u{1b}[39m│\u{1b}[0m \u{1b}[1;32m0\u{1b}[0m │ \u{1b}[38;5;81msrc\u{1b}[0m │ \u{1b}[38;5;48mmain.rs\u{1b}[0m │
         \u{1b}[39m╰───┴─────┴─────────╯\u{1b}[0m
     "};
-    test()
-        .run_with_data(
-            "
-                let data = $in
-                $env.config.use_ansi_coloring = true
-                $env.config.shell_integration.osc8 = false
-                $data | metadata set --path-columns [dir file] | table
-            ",
-            test_value!([
-                { dir: "src", file: "main.rs" },
-            ]),
-        )
-        .expect_value_eq(expected)
+    let code = "
+        $env.config.use_ansi_coloring = true
+        $env.config.shell_integration.osc8 = false
+        $in | metadata set --path-columns [dir file] | table
+    ";
+
+    test().run_with_data(code, input).expect_value_eq(expected)
 }
 
 #[test]
 fn metadata_path_columns_multiple_with_icons() -> Result {
+    let input = test_value!([{ dir: "src", file: "main.rs" }]);
     let expected = indoc! {"
         \u{1b}[39m╭───┬────────┬────────────╮\u{1b}[0m
         \u{1b}[39m│\u{1b}[0m \u{1b}[1;32m#\u{1b}[0m │  \u{1b}[1;32mdir\u{1b}[0m   │    \u{1b}[1;32mfile\u{1b}[0m    │
@@ -143,17 +136,39 @@ fn metadata_path_columns_multiple_with_icons() -> Result {
         \u{1b}[39m│\u{1b}[0m \u{1b}[1;32m0\u{1b}[0m │ \u{1b}[38;2;126;142;168m\u{f115}\u{1b}[0m  \u{1b}[38;5;81msrc\u{1b}[0m │ \u{1b}[38;2;222;165;132m\u{e68b}\u{1b}[0m  \u{1b}[38;5;48mmain.rs\u{1b}[0m │
         \u{1b}[39m╰───┴────────┴────────────╯\u{1b}[0m
     "};
+    let code = "
+        $env.config.use_ansi_coloring = true
+        $env.config.shell_integration.osc8 = false
+        $in | metadata set --path-columns [dir file] | table --icons
+    ";
+
     test()
-        .run_with_data(
-            "
-                let data = $in
-                $env.config.use_ansi_coloring = true
-                $env.config.shell_integration.osc8 = false
-                $data | metadata set --path-columns [dir file] | table --icons
-            ",
-            test_value!([
-                { dir: "src", file: "main.rs" },
-            ]),
-        )
-        .expect_value_eq(expected)
+        .run_with_data(code, input.clone())
+        .expect_value_eq(expected)?;
+
+    let code = "
+        $in | metadata set --path-columns [dir file] | table --icons | str contains ''
+    ";
+
+    test().run_with_data(code, input).expect_value_eq(true)
+}
+
+#[test]
+fn metadata_path_columns_multiple_with_clickable_links() -> Result {
+    Playground::setup("metadata_path_columns_clickable_links", |dirs, sandbox| {
+        sandbox.mkdir("src");
+        sandbox.with_files(&[EmptyFile("file.txt")]);
+
+        let input = test_value!([{ dir: "src", file: "main.rs" }]);
+        let code = "
+            $env.config.use_ansi_coloring = true
+            $env.config.shell_integration.osc8 = true
+            $in | metadata set --path-columns [dir file] | table | str contains 'file:///'
+        ";
+
+        test()
+            .cwd(dirs.test())
+            .run_with_data(code, input)
+            .expect_value_eq(true)
+    })
 }

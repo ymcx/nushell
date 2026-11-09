@@ -1110,18 +1110,25 @@ fn short_names_table_uses_full_path() -> Result {
         sandbox.mkdir("1/2");
         sandbox.within("1").with_files(&[EmptyFile("3.txt")]);
 
-        let code = r#"
-            $env.LS_COLORS = "di=31"
+        let code = "
+            $env.LS_COLORS = 'di=31'
             $env.config.use_ansi_coloring = true
             $env.config.shell_integration.osc8 = false
-            ls -s 1 | table | str contains "\u{1b}[31m"
-        "#;
+            ls -s 1 | table | str contains '\u{1b}[31m'
+        ";
         test().cwd(dirs.test()).run(code).expect_value_eq(true)?;
 
         let code = "ls -s 1 | table --icons | str contains ''";
         test().cwd(dirs.test()).run(code).expect_value_eq(true)?;
 
         let code = "ls -s 1 | table --icons | str contains '󰈙'";
+        test().cwd(dirs.test()).run(code).expect_value_eq(true)?;
+
+        let code = "
+            $env.config.use_ansi_coloring = true
+            $env.config.shell_integration.osc8 = true
+            ls -s 1 | table | str contains 'file:///'
+        ";
         test().cwd(dirs.test()).run(code).expect_value_eq(true)
     })
 }
